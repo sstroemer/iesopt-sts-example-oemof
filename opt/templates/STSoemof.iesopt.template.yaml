@@ -1,0 +1,91 @@
+# Refer to: https://oemof-thermal.readthedocs.io/en/latest/stratified_thermal_storage.html
+
+parameters:
+  connect_to: ~
+  diameter: ~
+  height: ~
+  temp_hot: ~
+  temp_cold: ~
+  temp_ambient: ~
+  soc_min: 0.05
+  soc_max: 0.95
+  efficiency: 0.99
+  # -----------------
+  _state_lb: ~
+  _state_ub: ~
+  _state_percentage_loss: ~
+  _state_absolute_loss: ~
+
+components:
+  storage:
+    type: Node
+    carrier: heat
+    has_state: true
+    state_cyclic: geq
+    state_lb: <_state_lb>
+    state_ub: <_state_ub>
+    state_percentage_loss: <_state_percentage_loss>
+  
+  fixed_loss:
+    type: Profile
+    carrier: heat
+    node_from: <self>.storage
+    value: <_state_absolute_loss>
+
+  charging:
+    type: Unit
+    inputs: {heat: <connect_to>}
+    outputs: {heat: <self>.storage}
+    conversion: 1 heat -> <efficiency> heat
+    capacity: 9999 in:heat  # TODO: we should finally properly support unlimited capacity -> raise an issue if that would make sense ;)
+
+  discharging:
+    type: Unit
+    inputs: {heat: <self>.storage}
+    outputs: {heat: <connect_to>}
+    conversion: 1 heat -> <efficiency> heat
+    capacity: 9999 out:heat
+
+functions:
+  prepare: |
+    # Constants.
+    ρ = 983.13                           # [kg/m3], assuming 60 °C water at 101325 Pa
+    c = 4200                             # [J/(kg*K)], assuming water
+    U = 0.5                              # [W/(m2*K)], assuming 0.5 W/(m2*K) for some tank
+
+    # Inputs.
+    d = this.get("diameter")             # [m]
+    h = this.get("height")               # [m]
+    Th = this.get("temp_hot")            # [°C]
+    Tc = this.get("temp_cold")           # [°C]
+    T0 = this.get("temp_ambient")        # [°C]
+
+    # Calculated values.
+    ΔThc = Th - Tc                       # [°C]
+    ΔTh0 = Th - T0                       # [°C]
+    ΔTc0 = Tc - T0                       # [°C]
+    
+    V = π * d^2/4 * h                    # [m3]
+    A = π * d * h + π * d^2/2            # [m2]
+    Q = V * c * ρ * ΔThc / 3.6e9         # [MWh]
+
+    β = U * 4/(d * ρ * c) * 3600         # [-] relative loss
+    γ = β / ΔThc * ΔTc0                  # [-] fixed relative loss
+    δ = U * π*d^2/4 * (ΔTh0+ΔTc0) / 1e6  # [MWh] fixed absolute loss
+
+    # Set internal parameters.
+    this.set("_state_lb", Q * this.get("soc_min"))
+    this.set("_state_ub", Q * this.get("soc_max"))
+    this.set("_state_percentage_loss", β)
+    this.set("_state_absolute_loss", γ*Q + δ)
+
+  finalize: |
+    this.exp.power = this.discharging.exp.out_heat - this.charging.exp.in_heat
+
+    loss_rel = this.get("_state_percentage_loss")
+    loss_abs = this.get("_state_absolute_loss")
+
+    this.exp.loss = [
+      this.storage.var.state[t] * loss_rel + loss_abs
+      for t in get_T(this.model)
+    ]

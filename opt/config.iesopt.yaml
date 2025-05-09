@@ -1,0 +1,59 @@
+config:
+  general:
+    version:
+      core: 2.6.6
+    performance:
+      logfile: false
+  optimization:
+    problem_type: LP
+    snapshots:
+      count: 4
+    solver:
+      name: highs
+      log: false
+
+carriers:
+  heat: {}
+
+components:
+  grid_1:
+    type: Node
+    carrier: heat
+
+  grid_2:
+    type: Node
+    carrier: heat
+
+  pipe:
+    type: Connection
+    node_from: grid_1
+    node_to: grid_2
+    capacity: 1.0
+  
+  supply:
+    type: Unit
+    outputs: {heat: grid_1}
+    conversion: ~ -> 1 heat
+    capacity: 0.75 out:heat
+    marginal_cost: 150 per out:heat
+
+  demand_1:
+    type: Profile
+    carrier: heat
+    node_from: grid_1
+    value: [0, 0, 1.25, 0]
+
+  demand_2:
+    type: Profile
+    carrier: heat
+    node_from: grid_2
+    value: [0, 0.75, 0, 0]
+  
+  sts:
+    type: STSoemof
+    connect_to: grid_2
+    diameter: 2.0
+    height: 5.0
+    temp_hot: 95.0
+    temp_cold: 40.0
+    temp_ambient: 15.0
