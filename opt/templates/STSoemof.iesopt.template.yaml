@@ -61,9 +61,9 @@ functions:
     T0 = this.get("temp_ambient")        # [°C]
 
     # Calculated values.
-    ΔThc = Th - Tc                       # [°C]
-    ΔTh0 = Th - T0                       # [°C]
-    ΔTc0 = Tc - T0                       # [°C]
+    ΔThc = Th - Tc                       # [K]
+    ΔTh0 = Th - T0                       # [K]
+    ΔTc0 = Tc - T0                       # [K]
     
     V = π * d^2/4 * h                    # [m3]
     A = π * d * h + π * d^2/2            # [m2]
