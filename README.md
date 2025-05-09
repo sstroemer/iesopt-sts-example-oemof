@@ -10,4 +10,4 @@ This is based on the description in the [oemof docs](https://oemof-thermal.readt
 4. Make sure the correct Julia environment is activated - run `] activate .` in the REPL
 5. Install the required packages - run `] instantiate` in the REPL
 
-Then you can execute the code in `main.jl` (`Shift + Enter` executes lines directly in the REPL).
+Then you can execute the code in `main.jl` (`Shift + Enter`) executes lines directly in the REPL).
